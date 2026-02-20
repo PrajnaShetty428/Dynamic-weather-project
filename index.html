@@ -18,15 +18,15 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    transition: background 0.8s ease;
+   
     background: linear-gradient(135deg, #141E30, #243B55);
 }
 
 /* Bigger Weather Card */
 .weather-card {
-    width: 90%;
-    max-width: 600px;
-    min-height: 500px;
+    width: 100%;
+    max-width: 2000px;
+    min-height: 2000px;
     padding: 40px;
     border-radius: 25px;
     backdrop-filter: blur(20px);
@@ -34,29 +34,32 @@ body {
     box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
     text-align: center;
     color: white;
+    margin-bottom:150px;
+
 }
 
 .weather-card h2 {
     margin-bottom: 25px;
-    font-size: 28px;
+    font-size: 160px;
 }
 
 /* Bigger Input */
 input {
     width: 100%;
     padding: 14px;
-    font-size: 16px;
+    font-size: 60px;
     border-radius: 12px;
     border: none;
     outline: none;
-    margin-bottom: 15px;
+    margin-bottom: 150px;
+    margin-top:160px;
 }
 
 /* Bigger Button */
 button {
     width: 100%;
     padding: 14px;
-    font-size: 16px;
+    font-size: 60px;
     border-radius: 12px;
     border: none;
     background: #00c6ff;
@@ -72,22 +75,23 @@ button:hover {
 }
 
 .result {
-    margin-top: 30px;
+    margin-top: 300px;
+    font-size: 160px;
 }
 
 .temperature {
-    font-size: 65px;
+    font-size: 160px;
     font-weight: bold;
     margin: 15px 0;
 }
 
 .icon {
-    width: 100px;
+    width: 160px;
 }
 
 .extra-info {
     margin-top: 10px;
-    font-size: 18px;
+    font-size: 160px;
 }
 
 .error {
@@ -137,24 +141,7 @@ async function getWeather() {
         const condition = data.current.condition.text.toLowerCase();
         const isDay = data.current.is_day;
 
-        /* 🌈 Dynamic Background */
-        if(condition.includes("sunny") || condition.includes("clear")) {
-            document.body.style.background =
-                isDay ? "linear-gradient(135deg, #fceabb, #f8b500)"
-                      : "linear-gradient(135deg, #0f2027, #203a43, #2c5364)";
-        }
-        else if(condition.includes("rain")) {
-            document.body.style.background =
-                "linear-gradient(135deg, #4e73df, #1cc88a)";
-        }
-        else if(condition.includes("cloud")) {
-            document.body.style.background =
-                "linear-gradient(135deg, #757f9a, #d7dde8)";
-        }
-        else {
-            document.body.style.background =
-                "linear-gradient(135deg, #141E30, #243B55)";
-        }
+      
 
         result.innerHTML = `
             <h3>${data.location.name}, ${data.location.country}</h3>
@@ -171,6 +158,12 @@ async function getWeather() {
         error.innerHTML = "City not found or API error!";
     }
 }
+// Run when Enter key is pressed
+document.getElementById("cityInput").addEventListener("keydown", function(event) {
+    if (event.key === "Enter") {
+        getWeather();
+    }
+});
 </script>
 
 </body>
