@@ -1,100 +1,71 @@
+- Fetch current conditions from WeatherAPI when configured, with a free Open-Meteo fallback when no key is available.
+2. No weather key is required for local use: Open-Meteo is used automatically when `WEATHER_API_KEY` is unset. To prefer WeatherAPI, set a key in the server environment; do not put it in `script.js`.
+The app uses a compressed JSON dataset generated from GeoNames' daily `IN.zip` and `countryInfo.txt` extracts. All countries are listed, while local state, district, and populated-place records currently cover India. Country/state/district data loads from a small index; only the selected state's place records are fetched from its compressed shard. The selected place's coordinates are sent to the server for weather lookup, avoiding ambiguity between places with the same name.
+When set, the WeatherAPI key is read by `server.js` and is never sent to the browser. The original page's key was exposed to every visitor; revoke it and use a fresh key in the environment if you choose WeatherAPI. Without a key, the server uses Open-Meteo's free non-commercial forecast endpoint and displays its WMO condition code as a symbol. Follow Open-Meteo's current usage and attribution terms.
 # Dynamic Weather App
 
-A responsive weather application that allows users to search for a city and view current weather information through a simple and user-friendly interface.
-
-## About the Project
-
-The Dynamic Weather App is a frontend web application that provides weather information based on the user's selected city.
-
-The application retrieves weather data from an external weather API and dynamically displays the information on the webpage.
+A responsive, plain HTML/CSS/JavaScript weather app with dependent country, state, district, and city/locality search.
 
 ## Features
 
-* Search weather by city name
-* Display current temperature
-* Display weather conditions
-* Display humidity
-* Display wind speed
-* Dynamic weather data using an API
-* Error handling for invalid city names
-* Responsive design for different screen sizes
-* Simple and user-friendly interface
-
-## Technologies Used
-
-* HTML
-* CSS
-* JavaScript
-* Weather API
-* Git
-* GitHub
+- Search locations from country through populated place, with each level dependent on the previous selection.
+- Load location data from a compressed local GeoNames dataset; no location API account is needed at runtime.
+- Fetch current temperature, condition, icon, feels-like temperature, humidity, and wind from WeatherAPI.
+- Keep the WeatherAPI key on the local Node server rather than in browser JavaScript.
+- Provide loading, missing-data, network, invalid-location, and API-limit messages.
+- Adapt the form and weather summary to desktop and mobile screens.
 
 ## Project Structure
 
 ```text
-Dynamic-weather-project/
-│
-├── index.html
-├── style.css
-├── script.js
-├── assets/
-└── README.md
+index.html    Page structure
+style.css     Responsive interface
+script.js     Location search and weather display
+server.js     Static server and private WeatherAPI proxy
+data/         Compressed local location data
+scripts/      Dataset builder
+README.md
 ```
 
-## Getting Started
+## Setup
 
-### Clone the Repository
+1. Install Node.js 18 or later.
+2. Create or use a WeatherAPI account and set its key in the server environment. Do not put the WeatherAPI key in `script.js`.
 
-```bash
-git clone https://github.com/PrajnaShetty428/Dynamic-weather-project.git
+Start the app without a key to use Open-Meteo:
+
+```powershell
+node server.js
 ```
 
-### Navigate to the Project
+To use WeatherAPI instead, set its key before starting the server:
 
-```bash
-cd Dynamic-weather-project
+```powershell
+$env:WEATHER_API_KEY = "your-weatherapi-key"
+node server.js
 ```
 
-### Run the Project
+Open http://localhost:3000. The app must run through this server; opening `index.html` directly bypasses the weather proxy. The server binds to localhost by default. For a hosted deployment, set `HOST=0.0.0.0` and protect the proxy with deployment-appropriate access and rate limits.
 
-Open `index.html` in your browser.
+## Location Data
 
-You can also use the Live Server extension in VS Code to run the project locally.
+The app uses a compressed JSON dataset generated from GeoNames' daily `IN.zip` and `countryInfo.txt` extracts. All countries are listed, while local state, district, and populated-place records currently cover India. Country/state/district data loads from a small index; only the selected state's populated places are fetched from its compressed shard. The selected place's coordinates are sent to the server and used as WeatherAPI's `q` value, avoiding ambiguity between places with the same name.
 
-## API Configuration
+The dataset is compressed to keep downloads small and is served with HTTP gzip encoding. Some source places have no district code; the builder first matches a same-named district, then assigns the place to its nearest GeoNames district centroid only when it is within 100 km. The source is provided as-is, and locality/district coverage may be incomplete. GeoNames data is licensed under CC BY 4.0; attribution is shown in the app. Refresh the dataset periodically because it is a snapshot.
 
-This project uses a weather API to retrieve weather information.
+To rebuild the dataset, download and extract `IN.zip` from `https://download.geonames.org/export/dump/`, download `countryInfo.txt` from the same directory, then run:
 
-If an API key is required, configure it according to the API implementation used in the project.
+```powershell
+node scripts/build-india-data.js "C:\path\to\IN.txt" "C:\path\to\countryInfo.txt"
+```
 
-Do not commit private API keys or other sensitive information to GitHub.
+WeatherAPI is called by `server.js`; its key is read from `WEATHER_API_KEY` and is never sent to the browser. The key previously embedded in the original page was exposed to every visitor. Replace/revoke that key in WeatherAPI and use a fresh one in the environment.
 
-## Project Goals
+## Git
 
-* Understand how weather APIs work
-* Practice fetching data using JavaScript
-* Work with dynamic data
-* Practice DOM manipulation
-* Handle user input and errors
-* Build a responsive web application
-* Practice Git and GitHub
-
-## Future Improvements
-
-* Add current-location weather detection
-* Add a 5-day weather forecast
-* Add weather icons based on weather conditions
-* Add Celsius/Fahrenheit conversion
-* Add search history
-* Add dark and light modes
-* Improve animations and user interface
-
-## Screenshots
-
-Add screenshots of the application here.
-
-```text
-![Weather App Screenshot](./assets/screenshot.png)
+```powershell
+git add index.html style.css script.js server.js README.md scripts data
+git commit -m "Add hierarchical location search"
 ```
 
 ## Author

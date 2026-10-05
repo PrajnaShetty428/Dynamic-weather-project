@@ -1,170 +1,57 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dynamic Weather App</title>
-
-<style>
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-    font-family: 'Segoe UI', sans-serif;
-}
-
-body {
-    height: 100vh;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-   
-    background: linear-gradient(135deg, #141E30, #243B55);
-}
-
-/* Bigger Weather Card */
-.weather-card {
-    width: 100%;
-    max-width: 2000px;
-    min-height: 2000px;
-    padding: 40px;
-    border-radius: 25px;
-    backdrop-filter: blur(20px);
-    background: rgba(255, 255, 255, 0.15);
-    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
-    text-align: center;
-    color: white;
-    margin-bottom:150px;
-
-}
-
-.weather-card h2 {
-    margin-bottom: 25px;
-    font-size: 160px;
-}
-
-/* Bigger Input */
-input {
-    width: 100%;
-    padding: 14px;
-    font-size: 60px;
-    border-radius: 12px;
-    border: none;
-    outline: none;
-    margin-bottom: 150px;
-    margin-top:160px;
-}
-
-/* Bigger Button */
-button {
-    width: 100%;
-    padding: 14px;
-    font-size: 60px;
-    border-radius: 12px;
-    border: none;
-    background: #00c6ff;
-    color: white;
-    font-weight: bold;
-    cursor: pointer;
-    transition: 0.3s;
-}
-
-button:hover {
-    background: #0072ff;
-    transform: scale(1.05);
-}
-
-.result {
-    margin-top: 300px;
-    font-size: 160px;
-}
-
-.temperature {
-    font-size: 160px;
-    font-weight: bold;
-    margin: 15px 0;
-}
-
-.icon {
-    width: 160px;
-}
-
-.extra-info {
-    margin-top: 10px;
-    font-size: 160px;
-}
-
-.error {
-    color: #ff6b6b;
-    margin-top: 15px;
-    font-size: 16px;
-}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#eaf5ef">
+    <title>Local Forecast | Dynamic Weather</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="script.js" defer></script>
 </head>
-
 <body>
+    <main class="weather-card">
+        <header class="app-header">
+            <p class="eyebrow">WEATHER, CLOSER TO HOME</p>
+            <h1>Local forecast</h1>
+            <p class="intro">Choose a place to see its current conditions.</p>
+        </header>
 
-<div class="weather-card">
-    <h2>🌤 Dynamic Weather App</h2>
-
-    <input type="text" id="cityInput" placeholder="Enter city name">
-    <button onclick="getWeather()">Get Weather</button>
-
-    <div class="result" id="result"></div>
-    <div class="error" id="error"></div>
-</div>
-
-<script>
-async function getWeather() {
-    const city = document.getElementById("cityInput").value;
-    const result = document.getElementById("result");
-    const error = document.getElementById("error");
-
-    result.innerHTML = "";
-    error.innerHTML = "";
-
-    if(city === "") {
-        error.innerHTML = "Please enter a city name!";
-        return;
-    }
-
-    try {
-        const response = await fetch(
-            `https://api.weatherapi.com/v1/current.json?key=4c0820c4d3b941b797f134954261902&q=${city}&aqi=yes`
-        );
-
-        if(!response.ok) {
-            throw new Error("City not found");
-        }
-
-        const data = await response.json();
-        const condition = data.current.condition.text.toLowerCase();
-        const isDay = data.current.is_day;
-
-      
-
-        result.innerHTML = `
-            <h3>${data.location.name}, ${data.location.country}</h3>
-            <img class="icon" src="https:${data.current.condition.icon}">
-            <div class="temperature">${data.current.temp_c}°C</div>
-            <p>${data.current.condition.text}</p>
-            <div class="extra-info">
-                <p>Humidity: ${data.current.humidity}%</p>
-                <p>Wind Speed: ${data.current.wind_kph} kph</p>
+        <form id="locationForm" class="location-form" novalidate>
+            <div class="location-grid">
+                <div class="field">
+                    <label for="countryInput">Country</label>
+                    <input id="countryInput" list="countryOptions" autocomplete="off" placeholder="Search countries" required>
+                    <datalist id="countryOptions"></datalist>
+                </div>
+                <div class="field">
+                    <label for="stateInput">State / region</label>
+                    <input id="stateInput" list="stateOptions" autocomplete="off" placeholder="Choose a country first" disabled required>
+                    <datalist id="stateOptions"></datalist>
+                </div>
+                <div class="field">
+                    <label for="districtInput">District</label>
+                    <input id="districtInput" list="districtOptions" autocomplete="off" placeholder="Choose a state first" disabled required>
+                    <datalist id="districtOptions"></datalist>
+                </div>
+                <div class="field">
+                    <label for="cityInput">City / locality</label>
+                    <input id="cityInput" list="cityOptions" autocomplete="off" placeholder="Choose a district first" disabled required>
+                    <datalist id="cityOptions"></datalist>
+                </div>
             </div>
-        `;
+            <p id="locationStatus" class="status" role="status" aria-live="polite"></p>
+            <button id="weatherButton" type="submit" disabled>
+                <span>Get weather</span><span aria-hidden="true">&#8594;</span>
+            </button>
+        </form>
 
-    } catch(err) {
-        error.innerHTML = "City not found or API error!";
-    }
-}
-// Run when Enter key is pressed
-document.getElementById("cityInput").addEventListener("keydown", function(event) {
-    if (event.key === "Enter") {
-        getWeather();
-    }
-});
-</script>
-
+        <section id="weatherPanel" class="weather-panel" aria-live="polite" aria-label="Current weather"></section>
+        <p id="weatherStatus" class="status weather-status" role="status" aria-live="polite"></p>
+        <footer>
+            <span>WeatherAPI when configured; Open-Meteo otherwise.</span>
+            <a href="https://www.geonames.org" target="_blank" rel="noreferrer">Location data © GeoNames, CC BY 4.0.</a>
+            <a href="https://open-meteo.com" target="_blank" rel="noreferrer">Open-Meteo</a>
+        </footer>
+    </main>
 </body>
 </html>
