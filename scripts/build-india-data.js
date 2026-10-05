@@ -161,7 +161,7 @@ async function main() {
         const name = fields[2] || fields[1];
         const writer = placeWriters.get(stateCode);
         if (!writer) continue;
-        const place = [districtCode, name, latitude, longitude, Number(fields[0])];
+        const place = [districtCode, name, latitude, longitude, Number(fields[0]), alternateNames(fields[3])];
         await writeChunk(writer.gzip, `${writer.firstPlace ? "" : ","}${JSON.stringify(place)}`);
         writer.firstPlace = false;
         writer.count++;

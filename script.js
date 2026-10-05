@@ -61,17 +61,28 @@ function clearSelection(level) {
 function setOptions(level, items) {
     optionLists[level] = items;
     const datalist = document.getElementById(`${level}Options`);
-    datalist.replaceChildren(...items.map((item) => {
-        const option = document.createElement("option");
-        option.value = item.label;
-        return option;
-    }));
+    const values = new Set();
+    const options = [];
+    for (const item of items) {
+        for (const value of [item.label, ...(item.aliases || [])]) {
+            const key = normalized(value);
+            if (!key || values.has(key)) continue;
+            values.add(key);
+            const option = document.createElement("option");
+            option.value = value;
+            options.push(option);
+        }
+    }
+    datalist.replaceChildren(...options);
 }
 
 function matchOption(level) {
     const value = normalized(locationInputs[level].value);
-    return optionLists[level].find((item) => normalized(item.label) === value
-        || item.aliases?.some((alias) => normalized(alias) === value)) || null;
+    const labelMatch = optionLists[level].find((item) => normalized(item.label) === value);
+    if (labelMatch) return labelMatch;
+
+    const aliasMatches = optionLists[level].filter((item) => item.aliases?.some((alias) => normalized(alias) === value));
+    return aliasMatches.length === 1 ? aliasMatches[0] : null;
 }
 
 function optionId(option) {
@@ -137,7 +148,7 @@ function loadStates(country) {
 
     locationInputs.state.disabled = false;
     locationInputs.state.placeholder = "Search states / regions";
-    const states = locationData.states.map((state) => ({ ...state, id: state.code }));
+    const states = locationData.states.map((state) => ({ ...state, id: state.code, countryCode: country.code }));
     setOptions("state", makeOptions(states));
     setStatus(locationStatus, "Choose a state or union territory.");
 }
@@ -175,6 +186,9 @@ async function loadCities(district) {
                 name: place[1],
                 lat: place[2],
                 lng: place[3],
+                aliases: place[5] || [],
+                stateCode: district.stateCode,
+                districtCode: district.code,
                 districtName: district.name
             }))
             .sort((first, second) => first.name.localeCompare(second.name));
@@ -186,7 +200,7 @@ async function loadCities(district) {
 }
 
 function onLocationInput(level, nextLevel, loadNext) {
-    locationInputs[level].addEventListener("input", () => {
+    const updateSelection = () => {
         const match = matchOption(level);
         if (!match) {
             selections[level] = null;
@@ -195,27 +209,49 @@ function onLocationInput(level, nextLevel, loadNext) {
             return;
         }
 
-        if (optionId(selections[level]) === optionId(match)) {
-            return;
-        }
+        if (optionId(selections[level]) === optionId(match)) return;
 
         selections[level] = match;
         clearSelection(nextLevel);
         loadNext(match);
-    });
+    };
+
+    locationInputs[level].addEventListener("input", updateSelection);
+    locationInputs[level].addEventListener("change", updateSelection);
 }
 
 onLocationInput("country", "state", loadStates);
 onLocationInput("state", "district", loadDistricts);
 onLocationInput("district", "city", loadCities);
-locationInputs.city.addEventListener("input", () => {
+
+function updateCitySelection() {
     const match = matchOption("city");
     selections.city = match;
     if (!match && locationInputs.city.value) {
         setStatus(locationStatus, "Choose a city or locality from the suggestions.");
     }
     updateWeatherButton();
-});
+}
+
+locationInputs.city.addEventListener("input", updateCitySelection);
+locationInputs.city.addEventListener("change", updateCitySelection);
+
+function getCurrentSelection() {
+    const country = matchOption("country");
+    const state = matchOption("state");
+    const district = matchOption("district");
+    const city = matchOption("city");
+
+    if (!country || !state || !district || !city
+        || state.countryCode && state.countryCode !== country.code
+        || district.stateCode !== state.code
+        || city.stateCode !== state.code
+        || city.districtCode !== district.code) {
+        return null;
+    }
+
+    return { country, state, district, city };
+}
 
 function addDetail(list, label, value) {
     const wrapper = document.createElement("div");
@@ -351,10 +387,13 @@ document.getElementById("locationForm").addEventListener("submit", async (event)
     weatherPanel.replaceChildren();
     setStatus(weatherStatus, "");
 
-    if (!selections.country || !selections.state || !selections.district || !selections.city) {
-        setStatus(weatherStatus, "Choose a country, state, district, and city or locality first.");
+    const selectedLocation = getCurrentSelection();
+    if (!selectedLocation) {
+        updateWeatherButton();
+        setStatus(weatherStatus, "Choose a country, state, district, and city or locality from the suggestions first.");
         return;
     }
+    Object.assign(selections, selectedLocation);
 
     const latitude = Number(selections.city.lat);
     const longitude = Number(selections.city.lng);
