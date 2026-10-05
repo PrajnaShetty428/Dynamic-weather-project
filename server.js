@@ -9,7 +9,7 @@ const publicFiles = {
     "/index.html": ["index.html", "text/html; charset=utf-8"],
     "/style.css": ["style.css", "text/css; charset=utf-8"],
     "/script.js": ["script.js", "text/javascript; charset=utf-8"],
-    "/data/india-index.json": ["data/india-index.json.gz", "application/json; charset=utf-8", "gzip"]
+    "/data/india-index.json.gz": ["data/india-index.json.gz", "application/gzip"]
 };
 
 function sendJson(response, status, data) {
@@ -150,9 +150,9 @@ const server = http.createServer(async (request, response) => {
         return;
     }
 
-    const stateShard = requestUrl.pathname.match(/^\/data\/india\/(\d{2})\.json$/);
+    const stateShard = requestUrl.pathname.match(/^\/data\/india\/(\d{2})\.json\.gz$/);
     const file = stateShard
-        ? [`data/india/${stateShard[1]}.json.gz`, "application/json; charset=utf-8", "gzip"]
+        ? [`data/india/${stateShard[1]}.json.gz`, "application/gzip"]
         : publicFiles[requestUrl.pathname];
     if (!file) {
         sendJson(response, 404, { error: "Not found." });

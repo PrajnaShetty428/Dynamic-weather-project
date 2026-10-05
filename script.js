@@ -1,4 +1,4 @@
-const LOCATION_DATA_URL = "/data/india-index.json";
+const LOCATION_DATA_URL = "data/india-index.json.gz";
 const locationInputs = {
     country: document.getElementById("countryInput"),
     state: document.getElementById("stateInput"),
@@ -99,11 +99,7 @@ function makeOptions(items, getName = (item) => item.name) {
 async function loadLocationData() {
     setStatus(locationStatus, "Loading local location data...");
     try {
-        const response = await fetch(LOCATION_DATA_URL);
-        if (!response.ok) {
-            throw new Error("Local location data is missing. Rebuild the dataset using the README instructions.");
-        }
-        locationData = await response.json();
+        locationData = await loadCompressedJson(LOCATION_DATA_URL);
         if (!locationData.countries?.length || !locationData.states?.length || !locationData.districts?.length) {
             throw new Error("The local location dataset is incomplete. Rebuild it using the README instructions.");
         }
@@ -112,6 +108,24 @@ async function loadLocationData() {
     } catch (error) {
         setStatus(locationStatus, error.message || "Could not load local location data.");
     }
+}
+
+async function loadCompressedJson(url) {
+    const response = await fetch(url);
+    if (!response.ok) {
+        throw new Error("Local location data is missing. Rebuild the dataset using the README instructions.");
+    }
+
+    if (response.headers.get("content-encoding")?.includes("gzip")) {
+        return response.json();
+    }
+
+    if (typeof DecompressionStream === "undefined") {
+        throw new Error("This browser cannot open the compressed location data. Update to a recent browser version.");
+    }
+
+    const decompressed = response.body.pipeThrough(new DecompressionStream("gzip"));
+    return new Response(decompressed).json();
 }
 
 function loadStates(country) {
@@ -149,11 +163,7 @@ async function loadCities(district) {
         const stateCode = district.stateCode;
         let statePlaces = placeDataByState.get(stateCode);
         if (!statePlaces) {
-            const response = await fetch(`/data/india/${encodeURIComponent(stateCode)}.json`);
-            if (!response.ok) {
-                throw new Error("The local city data is missing for this state. Rebuild the dataset using the README instructions.");
-            }
-            statePlaces = await response.json();
+            statePlaces = await loadCompressedJson(`data/india/${encodeURIComponent(stateCode)}.json.gz`);
             placeDataByState.set(stateCode, statePlaces);
         }
 
@@ -215,6 +225,78 @@ function addDetail(list, label, value) {
     description.textContent = value;
     wrapper.append(term, description);
     list.append(wrapper);
+}
+
+function openMeteoCondition(code, isDay) {
+    const descriptions = {
+        0: "Clear sky", 1: "Mainly clear", 2: "Partly cloudy", 3: "Overcast",
+        45: "Fog", 48: "Depositing rime fog", 51: "Light drizzle", 53: "Moderate drizzle",
+        55: "Dense drizzle", 56: "Light freezing drizzle", 57: "Dense freezing drizzle",
+        61: "Slight rain", 63: "Moderate rain", 65: "Heavy rain", 66: "Light freezing rain",
+        67: "Heavy freezing rain", 71: "Slight snowfall", 73: "Moderate snowfall",
+        75: "Heavy snowfall", 77: "Snow grains", 80: "Slight rain showers",
+        81: "Moderate rain showers", 82: "Violent rain showers", 85: "Slight snow showers",
+        86: "Heavy snow showers", 95: "Thunderstorm", 96: "Thunderstorm with slight hail",
+        99: "Thunderstorm with heavy hail"
+    };
+    let symbol = "\u2601";
+
+    if (code === 0) symbol = isDay ? "\u2600" : "\u263d";
+    else if (code <= 3) symbol = "\u26c5";
+    else if (code === 45 || code === 48) symbol = "\u2592";
+    else if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) symbol = "\u2614";
+    else if ((code >= 71 && code <= 77) || (code >= 85 && code <= 86)) symbol = "\u2744";
+    else if (code >= 95) symbol = "\u26c8";
+
+    return { text: descriptions[code] || "Current conditions", symbol };
+}
+
+async function getOpenMeteoWeather(latitude, longitude) {
+    const url = new URL("https://api.open-meteo.com/v1/forecast");
+    url.search = new URLSearchParams({
+        latitude: String(latitude),
+        longitude: String(longitude),
+        current: "temperature_2m,relative_humidity_2m,apparent_temperature,is_day,weather_code,wind_speed_10m",
+        temperature_unit: "celsius",
+        wind_speed_unit: "kmh",
+        timezone: "auto"
+    });
+
+    const response = await fetch(url);
+    const data = await response.json();
+    const current = data.current;
+    if (!response.ok || !current || !Number.isFinite(current.temperature_2m)) {
+        throw new Error("Could not retrieve current weather. Please try again later.");
+    }
+
+    return {
+        current: {
+            temp_c: current.temperature_2m,
+            feelslike_c: current.apparent_temperature,
+            humidity: current.relative_humidity_2m,
+            wind_kph: current.wind_speed_10m,
+            condition: openMeteoCondition(current.weather_code, current.is_day === 1)
+        }
+    };
+}
+
+async function getWeather(latitude, longitude) {
+    const query = new URLSearchParams({ q: `${latitude},${longitude}` });
+
+    try {
+        const response = await fetch(`api/weather?${query}`);
+        if (response.ok) {
+            const data = await response.json();
+            if (data.current?.condition) return data;
+        } else if (response.status !== 404) {
+            const data = await response.json().catch(() => ({}));
+            if (data.error) throw new Error(data.error);
+        }
+    } catch (error) {
+        if (!(error instanceof TypeError) && !(error instanceof SyntaxError)) throw error;
+    }
+
+    return getOpenMeteoWeather(latitude, longitude);
 }
 
 function showWeather(data) {
@@ -286,17 +368,7 @@ document.getElementById("locationForm").addEventListener("submit", async (event)
     setStatus(weatherStatus, "Getting current weather...");
 
     try {
-        const query = new URLSearchParams({ q: `${latitude},${longitude}` });
-        const response = await fetch(`/api/weather?${query}`);
-        let result;
-        try {
-            result = await response.json();
-        } catch {
-            throw new Error("The weather service returned an unreadable response. Please try again.");
-        }
-        if (!response.ok) {
-            throw new Error(result.error || "The weather service could not return current conditions.");
-        }
+        const result = await getWeather(latitude, longitude);
         showWeather(result);
         setStatus(weatherStatus, "");
     } catch (error) {

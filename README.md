@@ -45,7 +45,7 @@ $env:WEATHER_API_KEY = "your-weatherapi-key"
 node server.js
 ```
 
-Open http://localhost:3000. The app must run through this server; opening `index.html` directly bypasses the weather proxy. The server binds to localhost by default. For a hosted deployment, set `HOST=0.0.0.0` and protect the proxy with deployment-appropriate access and rate limits.
+Open http://localhost:3000. The app also works on static hosts such as GitHub Pages: location files use relative paths and are decompressed in the browser, while weather falls back to Open-Meteo if the host has no `/api/weather` route. In static hosting, Open-Meteo is used directly even if a server-side WeatherAPI key exists elsewhere. The Node server binds to localhost by default; for a hosted Node deployment, set `HOST=0.0.0.0` and protect the proxy with deployment-appropriate access and rate limits.
 
 ## Location Data
 
